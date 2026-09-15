@@ -2,7 +2,7 @@ Veydrava
 
 Veydrava is a smart-contract-powered payment vault for controlled and automated on-chain payments. Users deposit funds into a vault, configure spending rules, and authorize payments with signed intents instead of exposing wallet control to an external automation service.
 
-Live Demo
+https://veydrava.vercel.app/
 
 Open Veydrava
 

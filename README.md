@@ -1,152 +1,195 @@
-# Veydrava — owner-controlled agent payments
+Veydrava
 
-A complete, original implementation of the agent-budget vault concept, with a working React/TypeScript dashboard, Solidity contracts, a JavaScript SDK, optional local AI planner, restricted gas relayer, and automated security tests.
+Veydrava is a smart-contract-powered payment vault for controlled and automated on-chain payments. Users deposit funds into a vault, configure spending rules, and authorize payments with signed intents instead of exposing wallet control to an external automation service.
 
-**Initial owner:** `0xcd25106586c679FA4E1d753914BB9b24240ae588`
+Live Demo
 
-**Release status:** tested Sepolia deployment candidate, not an audited mainnet release. No public-chain contracts were deployed while building this project. Deployments require your wallet signature and testnet ETH. The hosted dashboard opens in an explicitly labelled interactive demo.
+Open Veydrava
 
-## What is included
+The live application includes a demo mode, so the interface can be explored without deploying a contract or spending real funds.
 
-| Component | Implementation |
-| --- | --- |
-| Vault | Non-upgradeable Solidity 0.8.30, OpenZeppelin 5.6.1 |
-| Authorization | EIP-712 signatures; EOA and ERC-1271 agent support |
-| Budgets | Per payment, agent daily, agent lifetime, and vault daily caps |
-| Approvals | One durable pending request per agent; exact owner approval |
-| Permissions | Per-agent recipient allowlists, expiry, revocation and epoch invalidation |
-| Ownership | Two-step handover; agent revocation and pause on acceptance |
-| Dashboard | React 19, TypeScript, ethers 6, accessible Shadcn primitives |
-| Gas sponsorship | Separate Node service, SQLite idempotency and restricted execution |
-| Agent | CLI/SDK signs exact intents with a dedicated agent key |
-| AI planner | Optional local Ollama integration; draft only, no signing/execution |
-| Tests | Foundry unit/fuzz/invariants plus local-chain SDK/relayer integration |
-| Delivery | Standard Next.js application, ready for Vercel |
+Key Features
 
-This recreates the useful spending-control workflow from [the reference Spenda project](https://spenda-delta.vercel.app/) with new source. It is not affiliated with its author. This version deliberately uses a signed-intent relayer rather than an ERC-4337 account, bundler or paymaster. It does not implement RWA purchases, risk oracles, automated subscriptions, or fiat merchant integrations. A payment transfers tokens to an approved address; it cannot purchase a real subscription without a merchant integration. Failed on-chain requests revert and do not create event receipts. Demo blocked receipts are clearly identified as sample data.
+Secure vault deposits and withdrawals
 
-## Quick start — Windows / WSL, Linux or macOS
+Recipient allowlisting
 
-The home page introduces Veydrava with an animated title. Select **Explore more** to open the demo workspace at `/dashboard`; select **Home** to return to the introduction. Previously shared `/?view=...` links still open the workspace directly. Animations respect your device's reduced-motion preference.
+Per-transaction and daily spending limits
 
-Use the page links in the dashboard header to jump to any of the eight pages. The Back button and your browser's Back/Forward buttons restore previously visited workspace pages. If you open a workspace page directly, Back returns to Overview. Navigation within the workspace keeps the current wallet session and demo data; the dashboard, forms, and dialogs use a black theme.
+Scheduled and recurring payment workflows
 
-Use Node 22.13+ (Node 22 LTS recommended) and npm. On Windows, run this project inside WSL Ubuntu, as with Foundry.
+EIP-712 typed-data payment authorization
 
-```bash
-npm ci
-npm run contracts:build
-npm run test:contracts
-npm run test:integration
+Relayer-compatible transaction execution
+
+ERC-1271 smart-wallet signature support
+
+Transaction history and payment activity
+
+Optional local Ollama payment-plan generator
+
+Dark, responsive dashboard with direct page navigation
+
+How It Works
+
+The user connects a wallet and deploys or selects a Veydrava vault.
+
+The user deposits funds into the vault.
+
+Spending limits and approved recipients are configured on-chain.
+
+The user signs an EIP-712 payment intent.
+
+A relayer or automation service submits the signed intent.
+
+The vault verifies the signature, nonce, deadline, recipient and spending limits.
+
+The smart contract executes the payment only when every rule passes.
+
+The automation service can request a payment, but it cannot freely control or withdraw the vault balance.
+
+Smart Contract
+
+The main contract is located at:
+
+contracts/src/VeydravaVault.sol
+
+Solidity is responsible for:
+
+Holding vault funds
+
+Enforcing access control
+
+Managing recipient permissions
+
+Applying transaction and daily limits
+
+Preventing replay attacks with nonces
+
+Rejecting expired authorizations
+
+Verifying signed payment intents
+
+Executing valid payments
+
+Recording events for the frontend
+
+This version uses an EIP-712 signed-intent vault with relayer support. It is not a complete ERC-4337 account-abstraction wallet and does not require an EntryPoint or bundler.
+
+Optional AI Planner
+
+The optional Ollama module converts a natural-language payment request into structured payment-plan data. It runs separately from the blockchain and never bypasses the smart contract's rules.
+
+User request -> Ollama plan -> User signature -> Contract verification -> Payment
+
+AI knowledge is not required to use the vault. The application and smart contract can operate without Ollama by creating payment details manually.
+
+Tech Stack
+
+Next.js and TypeScript
+
+React
+
+Solidity
+
+Foundry
+
+wagmi and viem
+
+EIP-712 and ERC-1271
+
+Optional Ollama integration
+
+Vercel deployment
+
+Run Locally
+
+Requirements
+
+Node.js 22
+
+npm
+
+A browser wallet such as MetaMask
+
+Foundry for smart-contract development
+
+Frontend
+
+npm install
 npm run dev
-```
 
-Open the local address printed by the dev command. The included npm Foundry binaries and pinned solc-js compiler avoid downloading a separate compiler. Native Foundry users can also run `forge test` with the installed Solidity compiler.
+Open http://localhost:3000.
 
-Run `npm run build` before deployment. For Vercel, use the Next.js preset with the default `npm run build` command and set `NEXT_PUBLIC_APP_URL` to your production URL. The separate Node relayer is a long-running service and must be hosted independently; it is not a Vercel serverless route.
+Create .env.local from the included example environment file, then add the required public RPC and deployed contract values. Never commit private keys or seed phrases.
 
-For Vercel Drop, upload `veydrava-vercel-fixed.zip` at https://vercel.com/drop. The ZIP places `package.json`, `app/`, and `vercel.json` at its root so Vercel detects and builds the Next.js application. Each Vercel Drop creates a new project and URL; open the URL returned by the latest successful deployment.
+Smart Contracts
 
-## Deploy the contracts from your wallet
+cd contracts
+forge install
+forge build
+forge test
 
-1. Open **Vault setup**, connect the initial owner wallet, and switch to **Sepolia** (chain ID `11155111`).
-2. Obtain Sepolia ETH from a trusted faucet for gas.
-3. Choose **Deploy test token**, then **Mint test tokens**. The included `tUSD` token has 6 decimals, unrestricted test minting, no value, and a constructor restricted to Sepolia/local Anvil.
-4. Set the vault daily budget and select **Deploy vault**. The constructor owner is your address above. Record the vault address and deployment block.
-5. **Fund vault**. Approve only the displayed amount, then confirm the deposit. All deposited tokens become controlled by the vault owner.
-6. Create a separate signing account for your agent. Under **Agents**, add that account and set its budgets and expiry.
-7. Under **Recipient allowlist**, add the recipient you verified independently. Setting a policy alone permits no recipients.
-8. Use the agent SDK or switch your browser wallet to the agent account to sign a payment request. Your owner wallet never signs on behalf of an agent.
-9. Requests over the approval threshold go into **Approvals**. The owner first approves the exact intent, then executes it in a separate transaction. A relayer may also execute an already approved intent.
+For a local blockchain:
 
-No seed phrase or private key belongs in the dashboard or a chat message.
+anvil
 
-### Foundry deployment alternative
+Run the deployment script from a second terminal using the project's configured RPC URL and deployment account.
 
-`contracts/script/Deploy.s.sol` deploys the vault and optionally TestUSD. The release script rejects mainnet chains. Use a local Foundry keystore (`cast wallet import`) rather than putting your owner private key in an environment file.
+Testing Automatic Payments
 
-```bash
-# Set these in your shell; GLOBAL_DAILY_LIMIT is in RAW token units.
-export OWNER_ADDRESS=0xcd25106586c679FA4E1d753914BB9b24240ae588
-export GLOBAL_DAILY_LIMIT=1000000000
-forge script contracts/script/Deploy.s.sol:Deploy \
-  --rpc-url "$RPC_URL" --account your-local-keystore --broadcast
-```
+Start in demo mode to understand the complete UI flow.
 
-Omitting TOKEN_ADDRESS deploys TestUSD. The 1,000,000,000-unit example represents 1,000 tokens for a 6-decimal token. Verify source on the selected explorer using Solidity 0.8.30, Cancun EVM, optimizer 200 runs, metadata bytecode hash `none`. Browser deployment artifacts and Foundry use matching settings. Archive the deployment transaction, constructor parameters, owner, token address, decimals, chain and block.
+Create a recipient and configure a small spending limit.
 
-## Run an agent
+Create a scheduled payment with a near-future execution time.
 
-Copy `.env.example` to `.env` locally and fill RPC_URL, VAULT_ADDRESS and a **separate** AGENT_PRIVATE_KEY. Keep the owner key out of this file. Configure its on-chain agent policy first.
+Sign the generated payment intent.
 
-```bash
-node --env-file=.env agent/run.mjs \
-  --recipient 0xYOUR_VERIFIED_RECIPIENT \
-  --amount 24.50 \
-  --memo "Compute invoice 42"
-```
+Run the relayer or automation process.
 
-The default output is a signed JSON envelope. It does not broadcast. Use **Make a payment → Import a signed request** to relay it through your wallet. The signature fixes the amount, recipient, chain, vault, nonce, deadline, policy version, authorization epoch and memo hash. Native gas belongs to the submitting wallet/relayer; payment assets belong to the vault.
+Confirm that the transaction appears in activity history.
 
-For gas sponsorship, start the relayer, configure its URL and token, and append `--submit`. Preserve the envelope if approval is needed: retry that same envelope after owner approval instead of generating a different deadline/signature.
+Try an expired intent, reused nonce or excessive amount and verify that the contract rejects it.
 
-### Optional AI planner
+Automation does not mean the contract wakes itself up. A relayer, keeper or scheduled backend must submit the transaction when it becomes executable; the contract then decides whether it is valid.
 
-Run Ollama locally with an installed model supporting structured output. Replace the example merchant list with reviewed recipients already approved on chain.
+Production Checklist
 
-```bash
-node agent/plan.mjs \
-  --model YOUR_INSTALLED_MODEL \
-  --merchants agent/merchants.example.json \
-  --prompt "Pay the approved compute vendor 24.50 tokens for invoice 42"
-```
+Before handling real funds:
 
-The planner returns a validated draft with `requiresHumanReview: true`. Review its amount, recipient and memo, then pass those explicit fields to `agent/run.mjs`. The planner is not connected to an execution tool and does not read signing keys. An actual Ollama model is not bundled or running in the hosted dashboard; integration tests use a mock model endpoint.
+Complete an independent smart-contract security audit
 
-## Restricted relayer
+Add comprehensive unit, fuzz and invariant tests
 
-The separate Node 22 process runs at `127.0.0.1:8788` by default. It requires a funded, dedicated RELAYER_PRIVATE_KEY, a fixed vault, and a random RELAYER_AUTH_TOKEN of at least 32 characters.
+Use a dedicated production RPC endpoint
 
-```bash
-npm run relayer
-```
+Protect relayer credentials with a managed secret store
 
-Only `POST /v1/intents` is accepted, with JSON and `Authorization: Bearer <token>`. This endpoint receives an SDK envelope. It chooses only `submitIntent` or `executeSpend` after checking current policy and simulating signature validation. Callers cannot supply an arbitrary target, calldata, asset, native value, or action name. Gas limits, fee caps, daily reserved gas budget, daily request cap, body size and durable request rate limits are enforced.
+Add monitoring, alerts and rate limiting
 
-SQLite stores the exact signed transaction **before** broadcasting. Retries use the same transaction hash. Startup replays missing prepared transactions before accepting new work. Authentication is machine-to-machine; do not place its bearer token in frontend code. Put a TLS reverse proxy in front for remote access. Follow [the relayer runbook](docs/OPERATIONS.md) before operating it.
+Verify contracts on the target block explorer
 
-## Receipts and persistent state
+Test with small amounts on a testnet first
 
-Policies, recipients, counters, nonces, approvals and pending requests live on chain. Local storage saves only the selected vault address/deployment block. Demo state is in memory and resets on reload. The dashboard loads up to the latest 10,000 blocks of successful payment events and refreshes every 30 seconds. It shows the loaded range explicitly.
+Deployment
 
-For complete history, stream events from the deployment block:
+The frontend is configured for Vercel:
 
-```bash
-node --env-file=.env scripts/export-receipts.mjs --from DEPLOYMENT_BLOCK > receipts.ndjson
-```
+npm run build
 
-The export defaults to 12 blocks behind the current head, includes block hashes, and does not assume finality. Run against an archival/log-capable provider. Reconcile reorganizations before using exported records for accounting.
+Push the repository to GitHub, import it into Vercel, add the required environment variables, and deploy. Vercel should detect Next.js automatically.
 
-## Source layout
+Owner
 
-| Path | Purpose |
-| --- | --- |
-| `contracts/src/VeydravaVault.sol` | Policy, authorization, approval queue and payment execution |
-| `contracts/src/TestUSD.sol` | Testnet-only mintable ERC20 |
-| `contracts/test/VeydravaVault.t.sol` | Adversarial tests and stateful invariant handler |
-| `contracts/script/Deploy.s.sol` | Foundry deployment script |
-| `lib/veydrava/chain.ts` | Wallet/network validation, chain reads, transaction helpers |
-| `lib/veydrava/artifacts/` | ABI and bytecode generated from these contracts |
-| `components/veydrava/app.tsx` | Complete dashboard and wallet flows |
-| `sdk/index.mjs` | Intent construction, validation and EIP-712 signing |
-| `agent/` | Agent CLI and optional local model planner |
-| `services/relayer/server.mjs` | Restricted, authenticated, durable gas sponsorship |
-| `tests/` | Real Anvil integration and mock planner tests |
-| `scripts/test-site-runtime.mjs` | Regression checks against the production Worker build |
-| `docs/SECURITY.md` | Trust boundaries, limits and pre-mainnet review |
-| `docs/OPERATIONS.md` | Deployment, monitoring, backup and incident response |
-| `docs/VALIDATION.md` | Validation performed for this release |
+Configured project owner address:
 
-## Mainnet readiness
+0xcd25106586c679FA4E1d753914BB9b24240ae588
 
-Tests cannot certify custom financial contracts as production safe. Before a real-funds launch, complete an independent contract audit, adversarial frontend/wallet testing, token-specific review, deployment/source verification, gas and key-management review, recovery rehearsals, monitoring, and a capped pilot. Mainnet chain support and ERC-4337 sponsorship require additional implementation and validation. The included relayer and deployment script intentionally support only Sepolia and local Anvil.
+Disclaimer
+
+Veydrava is an educational portfolio project. Do not use it to custody significant real funds until the contracts, relayer and deployment configuration have received a professional security review.
+
+License
+
+MIT
